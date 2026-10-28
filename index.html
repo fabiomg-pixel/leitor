@@ -848,6 +848,49 @@
   .andamento-imp i { display: block; height: 100%; width: 0; background: var(--acento); transition: width .2s; }
   .fala.dele .ouvir.alem { margin-left: .8rem; }
   #voz-alem { margin-top: -.2rem; }
+
+  /* card da chave Gemini na estante */
+  .card-chave-estante {
+    border: 1px solid var(--linha);
+    border-radius: 14px;
+    background: var(--relevo);
+    padding: .85rem 1rem;
+    margin-bottom: .85rem;
+  }
+  .card-chave-linha {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: .75rem;
+  }
+  .card-chave-info {
+    display: flex;
+    align-items: center;
+    gap: .65rem;
+  }
+  .card-chave-icone {
+    font-size: 1.25rem;
+    flex-shrink: 0;
+  }
+  .card-chave-titulo {
+    font-size: .88rem;
+    font-weight: 600;
+    color: var(--tinta);
+  }
+  .card-chave-status {
+    font-size: .78rem;
+    color: var(--meia-tinta);
+    margin-top: .15rem;
+  }
+  .card-chave-status.conectado {
+    color: var(--bom);
+    font-weight: 500;
+  }
+  .painel-chave-estante {
+    margin-top: .75rem;
+    padding-top: .75rem;
+    border-top: 1px solid var(--linha);
+  }
 </style>
 
 <!-- ---------------------------------------------------------- estante -->
@@ -860,6 +903,32 @@
   </div>
 
   <div class="conteudo">
+    <!-- Configuração do Gemini na página de entrada -->
+    <div class="card-chave-estante" id="card-chave-estante">
+      <div class="card-chave-linha">
+        <div class="card-chave-info">
+          <span class="card-chave-icone">🔑</span>
+          <div>
+            <div class="card-chave-titulo">Inteligência Artificial (Google Gemini)</div>
+            <div class="card-chave-status" id="estante-status-gemini">Verificando...</div>
+          </div>
+        </div>
+        <button class="ficha" id="btn-toggle-chave-estante">Configurar chave</button>
+      </div>
+
+      <div class="painel-chave-estante oculto" id="painel-chave-estante">
+        <p class="vazio" style="padding:.2rem 0 .6rem;margin:0;font-size:.8rem;line-height:1.45">
+          Para conversar com os livros e fazer perguntas com proteção anti-spoiler, configure sua chave da API do Gemini. Ela é gratuita e fica guardada com segurança no seu navegador.
+          <a href="https://aistudio.google.com/app/apikey" target="_blank" rel="noopener" style="color:var(--acento);text-decoration:underline;font-weight:500">Obter chave gratuita no Google AI Studio ↗</a>
+        </p>
+        <div style="display:flex;gap:.5rem;flex-wrap:wrap">
+          <input type="password" id="input-chave-estante" class="campo" placeholder="Cole sua chave aqui (AIzaSy...)" style="flex:1;min-width:200px;font-family:var(--mono);font-size:.82rem">
+          <button class="acao" id="btn-salvar-chave-estante" style="white-space:nowrap;padding:.45rem .9rem">Salvar chave</button>
+          <button class="acao secundaria oculto" id="btn-remover-chave-estante" style="white-space:nowrap;padding:.45rem .9rem">Remover</button>
+        </div>
+      </div>
+    </div>
+
     <button class="abrir oculto" id="continuar"></button>
     <button class="acao secundaria" id="adicionar">＋ Adicionar EPUB, revista ou jornal (PDF)</button>
     <!-- Sem accept de propósito: no iOS o .epub às vezes aparece cinza no seletor. -->
@@ -2512,24 +2581,86 @@ setTimeout(function () {
     }
   }
 
+  function atualizarPainelChaveEstante() {
+    const chave = obterChaveGemini();
+    const status = $('estante-status-gemini');
+    const btnToggle = $('btn-toggle-chave-estante');
+    const btnRemover = $('btn-remover-chave-estante');
+    const painel = $('painel-chave-estante');
+    const input = $('input-chave-estante');
+
+    if (!status) return;
+
+    if (chave) {
+      status.textContent = '✓ Conectada (' + chave.slice(0, 6) + '…' + chave.slice(-4) + ')';
+      status.className = 'card-chave-status conectado';
+      btnToggle.textContent = 'Alterar chave';
+      btnRemover.classList.remove('oculto');
+      input.placeholder = 'Substituir chave existente…';
+      painel.classList.add('oculto');
+    } else {
+      status.textContent = '⚠️ Não configurada (necessária para perguntas anti-spoiler)';
+      status.className = 'card-chave-status';
+      btnToggle.textContent = 'Configurar chave';
+      btnRemover.classList.add('oculto');
+      input.placeholder = 'Cole sua chave aqui (AIzaSy...)';
+      painel.classList.remove('oculto');
+    }
+  }
+
   function atualizarPainelChave() {
     const chave = obterChaveGemini();
     const status = $('status-chave-gemini');
     const btnRemover = $('btn-remover-gemini-key');
-    if (chave) {
-      status.textContent = '✓ Conectada (' + chave.slice(0, 6) + '…' + chave.slice(-4) + ')';
-      status.style.color = '#3d8b37';
-      btnRemover.classList.remove('oculto');
-      $('input-gemini-key').placeholder = 'Substituir chave existente…';
-    } else {
-      status.textContent = 'Não configurada';
-      status.style.color = 'var(--meia-tinta)';
-      btnRemover.classList.add('oculto');
-      $('input-gemini-key').placeholder = 'Cole sua chave aqui (AIzaSy...)';
+    if (status) {
+      if (chave) {
+        status.textContent = '✓ Conectada (' + chave.slice(0, 6) + '…' + chave.slice(-4) + ')';
+        status.style.color = '#3d8b37';
+        btnRemover.classList.remove('oculto');
+        $('input-gemini-key').placeholder = 'Substituir chave existente…';
+      } else {
+        status.textContent = 'Não configurada';
+        status.style.color = 'var(--meia-tinta)';
+        btnRemover.classList.add('oculto');
+        $('input-gemini-key').placeholder = 'Cole sua chave aqui (AIzaSy...)';
+      }
     }
+    atualizarPainelChaveEstante();
   }
 
   function inicializarGemini() {
+    ao('btn-toggle-chave-estante', 'click', () => {
+      $('painel-chave-estante').classList.toggle('oculto');
+      if (!$('painel-chave-estante').classList.contains('oculto')) {
+        $('input-chave-estante').focus();
+      }
+    });
+
+    ao('btn-salvar-chave-estante', 'click', () => {
+      const v = $('input-chave-estante').value.trim();
+      if (!v) { aviso('Digite ou cole a sua chave do Gemini.'); return; }
+      local.gravar('leitor.gemini_key', v);
+      localStorage.setItem('gemini_api_key', v);
+      $('input-chave-estante').value = '';
+      sample = criarGeminiClient();
+      podeFerramentas = true;
+      desligarFallback();
+      atualizarPainelChave();
+      atualizarPainelChaveEstante();
+      aviso('Chave do Gemini salva com sucesso!');
+    });
+
+    ao('btn-remover-chave-estante', 'click', () => {
+      local.gravar('leitor.gemini_key', '');
+      localStorage.removeItem('gemini_api_key');
+      $('input-chave-estante').value = '';
+      sample = null;
+      podeFerramentas = false;
+      ligarFallback();
+      atualizarPainelChave();
+      atualizarPainelChaveEstante();
+      aviso('Chave do Gemini removida.');
+    });
     ao('btn-chave-gemini', 'click', alternarPainelChave);
     ao('btn-salvar-gemini-key', 'click', () => {
       const v = $('input-gemini-key').value.trim();
@@ -2557,6 +2688,7 @@ setTimeout(function () {
 
     const chave = obterChaveGemini();
     atualizarPainelChave();
+    atualizarPainelChaveEstante();
     if (chave) {
       sample = criarGeminiClient();
       podeFerramentas = true;
