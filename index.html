@@ -926,6 +926,14 @@
           <button class="acao" id="btn-salvar-chave-estante" style="white-space:nowrap;padding:.45rem .9rem">Salvar chave</button>
           <button class="acao secundaria oculto" id="btn-remover-chave-estante" style="white-space:nowrap;padding:.45rem .9rem">Remover</button>
         </div>
+        <div style="display:flex;gap:.5rem;align-items:center;margin-top:.5rem">
+          <label for="select-gemini-model-estante" style="font-size:.78rem;color:var(--meia-tinta);white-space:nowrap">Modelo:</label>
+          <select id="select-gemini-model-estante" class="campo" style="padding:.25rem .5rem;font-size:.8rem;flex:1">
+            <option value="gemini-3-flash-preview">Gemini 3 Flash (Recomendado — Geração Atual / Rápido)</option>
+            <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Raciocínio Profundo / Análise)</option>
+            <option value="gemini-2.5-flash">Gemini 2.5 Flash (Geração Anterior / Legado)</option>
+          </select>
+        </div>
       </div>
     </div>
 
@@ -1126,6 +1134,14 @@
         <input type="password" id="input-gemini-key" class="campo" placeholder="Cole sua chave aqui (AIzaSy...)" style="flex:1;font-family:var(--mono);font-size:.82rem">
         <button class="acao" id="btn-salvar-gemini-key" style="white-space:nowrap;padding:.4rem .8rem">Salvar</button>
         <button class="acao secundaria oculto" id="btn-remover-gemini-key" style="white-space:nowrap;padding:.4rem .8rem">Remover</button>
+      </div>
+      <div style="display:flex;gap:.5rem;align-items:center;margin-top:.45rem">
+        <label for="select-gemini-model-chat" style="font-size:.76rem;color:var(--meia-tinta);white-space:nowrap">Modelo:</label>
+        <select id="select-gemini-model-chat" class="campo" style="padding:.25rem .45rem;font-size:.78rem;flex:1">
+          <option value="gemini-3-flash-preview">Gemini 3 Flash (Recomendado — Geração Atual / Rápido)</option>
+          <option value="gemini-3.1-pro-preview">Gemini 3.1 Pro (Raciocínio Profundo / Análise)</option>
+          <option value="gemini-2.5-flash">Gemini 2.5 Flash (Geração Anterior / Legado)</option>
+        </select>
       </div>
     </div>
     <div class="topo-conversa oculto" id="topo-conversa">
@@ -2350,10 +2366,18 @@ setTimeout(function () {
     });
   }
 
+  function obterModeloGemini(tier) {
+    const custom = local.ler('leitor.gemini_model', '') || localStorage.getItem('gemini_model');
+    if (custom) return custom;
+    // Família Gemini 3 (geração atual)
+    if (tier === 'complex') return 'gemini-3.1-pro-preview';
+    return 'gemini-3-flash-preview';
+  }
+
   async function executarGemini(apiKey, entradaOuTexto, opcoes) {
     opcoes = opcoes || {};
     const signal = opcoes.signal;
-    let model = (opcoes.modelTier === 'complex') ? 'gemini-2.5-pro' : 'gemini-2.5-flash';
+    let model = obterModeloGemini(opcoes.modelTier);
 
     let systemInstruction = null;
     const contents = [];
@@ -2450,7 +2474,11 @@ setTimeout(function () {
         if (resp.status === 429) {
           throw { code: 'rate_limited', mensagem: 'Limite de requisições do Gemini atingido. Aguarde um instante.' };
         }
-        if (model === 'gemini-2.5-pro') {
+        if (model === 'gemini-3.1-pro-preview') {
+          model = 'gemini-3-flash-preview';
+          continue;
+        }
+        if (model === 'gemini-3-flash-preview') {
           model = 'gemini-2.5-flash';
           continue;
         }
@@ -2662,6 +2690,25 @@ setTimeout(function () {
       aviso('Chave do Gemini removida.');
     });
     ao('btn-chave-gemini', 'click', alternarPainelChave);
+    function sincronizarSelectsModelo(valor) {
+      if ($('select-gemini-model-estante')) $('select-gemini-model-estante').value = valor;
+      if ($('select-gemini-model-chat')) $('select-gemini-model-chat').value = valor;
+    }
+
+    const modeloAtual = local.ler('leitor.gemini_model', '') || localStorage.getItem('gemini_model') || 'gemini-3-flash-preview';
+    sincronizarSelectsModelo(modeloAtual);
+
+    const aoMudarModelo = (ev) => {
+      const v = ev.target.value;
+      local.gravar('leitor.gemini_model', v);
+      localStorage.setItem('gemini_model', v);
+      sincronizarSelectsModelo(v);
+      aviso('Modelo alterado para ' + ev.target.options[ev.target.selectedIndex].text.split('(')[0].trim());
+    };
+
+    if ($('select-gemini-model-estante')) $('select-gemini-model-estante').addEventListener('change', aoMudarModelo);
+    if ($('select-gemini-model-chat')) $('select-gemini-model-chat').addEventListener('change', aoMudarModelo);
+
     ao('btn-salvar-gemini-key', 'click', () => {
       const v = $('input-gemini-key').value.trim();
       if (!v) { aviso('Digite ou cole a sua chave do Gemini.'); return; }
